@@ -1,0 +1,7 @@
+{
+  "name": "Управление оборудованием",
+  "description": "Система учёта и управления оборудованием, выдачи сотрудникам, импорта/экспорта CSV, истории операций и синхронизации с Google Диском",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
