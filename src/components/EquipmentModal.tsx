@@ -74,10 +74,12 @@ export default function EquipmentModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <div>
             <h2 className="text-lg font-bold text-slate-900">
-              {editingItem ? 'Редактировать оборудование' : 'Новое оборудование'}
+              {editingItem ? 'Редактирование карточки оборудования' : 'Новое оборудование'}
             </h2>
             <p className="text-xs text-slate-500">
-              Заполните параметры единицы учёта для добавления в каталог
+              {editingItem
+                ? `Редактирование реквизитов позиции «${editingItem.name}»`
+                : 'Заполните параметры единицы учёта для добавления в каталог'}
             </p>
           </div>
           <button

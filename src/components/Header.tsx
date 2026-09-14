@@ -1,6 +1,20 @@
+import { useState, useEffect } from 'react';
 import { ActiveTab, Equipment, Employee, IssuedItemTracking } from '../types';
 import { type User } from 'firebase/auth';
-import { Package, Users, History, Settings, CheckCircle2, ArrowRightLeft, Boxes, Cloud } from 'lucide-react';
+import {
+  Package,
+  Users,
+  History,
+  Settings,
+  CheckCircle2,
+  ArrowRightLeft,
+  Boxes,
+  Cloud,
+  LogOut,
+  ArrowLeft,
+  Wifi,
+  WifiOff,
+} from 'lucide-react';
 
 interface HeaderProps {
   activeTab: ActiveTab;
@@ -12,6 +26,8 @@ interface HeaderProps {
   onOpenReturnModal: () => void;
   currentUser?: User | null;
   onOpenGoogleDriveModal?: () => void;
+  onOpenExitModal?: () => void;
+  onGoBack?: () => void;
 }
 
 export default function Header({
@@ -24,6 +40,8 @@ export default function Header({
   onOpenReturnModal,
   currentUser,
   onOpenGoogleDriveModal,
+  onOpenExitModal,
+  onGoBack,
 }: HeaderProps) {
   const totalStockUnits = equipment.reduce((sum, item) => sum + item.quantity, 0);
   const totalIssuedUnits = issuedItems.reduce((sum, item) => sum + item.issuedQuantity, 0);
@@ -90,6 +108,19 @@ export default function Header({
               )}
             </button>
           )}
+
+          {onOpenExitModal && (
+            <button
+              id="btn-header-exit"
+              type="button"
+              onClick={onOpenExitModal}
+              title="Закрыть приложение"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-red-50 hover:text-red-700 hover:border-red-300 border border-slate-300 text-slate-700 text-xs sm:text-sm font-medium rounded-lg shadow-2xs transition-colors cursor-pointer"
+            >
+              <LogOut className="w-4 h-4 text-slate-500" />
+              <span>Выход</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -119,19 +150,33 @@ export default function Header({
 
       {/* Navigation Tabs */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <nav className="flex space-x-1 sm:space-x-4 border-b border-transparent overflow-x-auto py-1">
+        <nav className="flex items-center space-x-1 sm:space-x-3 border-b border-transparent overflow-x-auto py-1">
+          {activeTab !== 'main' && onGoBack && (
+            <button
+              id="nav-tab-back"
+              type="button"
+              onClick={onGoBack}
+              className="inline-flex items-center gap-1 py-2 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer shrink-0"
+              title="Перейти на предыдущий экран"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-slate-600" />
+              <span>Назад</span>
+            </button>
+          )}
+
           <button
             id="nav-tab-main"
             type="button"
+            translate="no"
             onClick={() => setActiveTab('main')}
-            className={`flex items-center gap-2 py-2.5 px-3 border-b-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-colors cursor-pointer ${
+            className={`flex items-center gap-2 py-2.5 px-3 border-b-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-colors cursor-pointer notranslate ${
               activeTab === 'main'
                 ? 'border-blue-700 text-blue-800'
                 : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
             }`}
           >
             <ArrowRightLeft className="w-4 h-4" />
-            Выдача и приём
+            Приём и выдача
           </button>
 
           <button

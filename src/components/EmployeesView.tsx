@@ -11,6 +11,7 @@ import {
   Edit2,
   Trash2,
   CheckCircle2,
+  RotateCcw,
 } from 'lucide-react';
 
 interface EmployeesViewProps {
@@ -20,6 +21,7 @@ interface EmployeesViewProps {
   onEditEmployee: (employee: Employee) => void;
   onDeleteEmployee: (id: number) => void;
   onIssueToEmployee: (employee: Employee) => void;
+  onReturnFromEmployee?: (employee: Employee) => void;
 }
 
 export default function EmployeesView({
@@ -29,6 +31,7 @@ export default function EmployeesView({
   onEditEmployee,
   onDeleteEmployee,
   onIssueToEmployee,
+  onReturnFromEmployee,
 }: EmployeesViewProps) {
   const [search, setSearch] = useState('');
 
@@ -198,16 +201,28 @@ export default function EmployeesView({
                   </div>
                 </div>
 
-                {/* Bottom Action */}
-                <div className="mt-4 pt-3 border-t border-slate-100">
+                {/* Bottom Actions */}
+                <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center gap-2">
                   <button
                     type="button"
                     onClick={() => onIssueToEmployee(emp)}
-                    className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 bg-blue-50 hover:bg-blue-100 text-blue-800 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                    className="w-full flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 bg-blue-50 hover:bg-blue-100 text-blue-800 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
                   >
                     <ArrowRightLeft className="w-3.5 h-3.5" />
-                    Выдать прибор сотруднику
+                    Выдать прибор
                   </button>
+
+                  {totalItemsCount > 0 && onReturnFromEmployee && (
+                    <button
+                      type="button"
+                      onClick={() => onReturnFromEmployee(emp)}
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 py-2 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold rounded-xl border border-emerald-200 transition-colors cursor-pointer"
+                      title="Принять возврат числящегося оборудования"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 text-emerald-700" />
+                      Принять возврат ({totalItemsCount})
+                    </button>
+                  )}
                 </div>
               </div>
             );

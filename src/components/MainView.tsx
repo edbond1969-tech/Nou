@@ -9,6 +9,7 @@ import {
   ArrowDownLeft,
   Search,
   RotateCcw,
+  Edit2,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -23,6 +24,7 @@ interface MainViewProps {
   onOpenAddEquipment: () => void;
   onOpenAddEmployee: () => void;
   onNavigateToTab: (tab: 'equipment' | 'employees' | 'history' | 'settings') => void;
+  onEditEquipment?: (item: Equipment) => void;
 }
 
 export default function MainView({
@@ -36,6 +38,7 @@ export default function MainView({
   onOpenAddEquipment,
   onOpenAddEmployee,
   onNavigateToTab,
+  onEditEquipment,
 }: MainViewProps) {
   const [issuedSearch, setIssuedSearch] = useState('');
 
@@ -176,64 +179,189 @@ export default function MainView({
             Ничего не найдено по запросу «{issuedSearch}»
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
-                <tr>
-                  <th className="py-3 px-4">Инв. номер</th>
-                  <th className="py-3 px-4">Оборудование / Модель</th>
-                  <th className="py-3 px-4">Сотрудник</th>
-                  <th className="py-3 px-4">Выдано</th>
-                  <th className="py-3 px-4">Дата выдачи</th>
-                  <th className="py-3 px-4 text-right">Действие</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
-                {filteredIssued.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3 px-4">
-                      {/* ТЕМНО-СИНИЙ цвет инвентарного номера по ТЗ */}
-                      <span className="font-bold text-blue-900 tracking-wide text-xs bg-blue-50 border border-blue-200 px-2 py-1 rounded">
-                        {item.inventoryNumber}
+          <>
+            {/* Mobile View: Issued Cards (Screens < 768px) */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {filteredIssued.map((item, idx) => {
+                const eqItem = equipment.find(
+                  (e) => e.inventoryNumber === item.inventoryNumber || e.id === item.equipmentId
+                );
+                return (
+                  <div key={idx} className="p-4 space-y-2.5 hover:bg-slate-50/60 transition-colors">
+                    <div className="flex items-center justify-between">
+                      {eqItem && onEditEquipment ? (
+                        <button
+                          type="button"
+                          onClick={() => onEditEquipment(eqItem)}
+                          className="font-bold text-blue-900 tracking-wide text-xs bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
+                          title="Редактировать карточку оборудования"
+                        >
+                          {item.inventoryNumber}
+                        </button>
+                      ) : (
+                        <span className="font-bold text-blue-900 tracking-wide text-xs bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
+                          {item.inventoryNumber}
+                        </span>
+                      )}
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900">
+                        {item.issuedQuantity} шт.
                       </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="font-semibold text-slate-900 text-sm">
-                        {item.equipmentName}
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <div
+                          onClick={() => eqItem && onEditEquipment && onEditEquipment(eqItem)}
+                          className={`font-semibold text-slate-900 text-sm ${
+                            eqItem && onEditEquipment ? 'hover:text-blue-700 cursor-pointer' : ''
+                          }`}
+                        >
+                          {item.equipmentName}
+                        </div>
+                        {eqItem && onEditEquipment && (
+                          <button
+                            type="button"
+                            onClick={() => onEditEquipment(eqItem)}
+                            className="p-1 text-slate-400 hover:text-blue-700 rounded transition-colors cursor-pointer"
+                            title="Редактировать карточку оборудования"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
-                      <div className="text-[11px] text-slate-500">
+                      <div className="text-xs text-slate-500 mt-0.5">
                         {item.model || 'Модель не указана'}
                         {item.serialNumber ? ` • S/N: ${item.serialNumber}` : ''}
                       </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="font-semibold text-slate-800">
-                        {item.employeeName}
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100">
+                      <div>
+                        <span className="text-slate-400">У сотрудника: </span>
+                        <span className="font-semibold text-slate-800">{item.employeeName}</span>
                       </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900">
-                        {item.issuedQuantity} шт.
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-slate-500 whitespace-nowrap">
-                      {item.lastIssuedDate}
-                    </td>
-                    <td className="py-3 px-4 text-right">
+                      <div className="text-slate-400">{item.lastIssuedDate}</div>
+                    </div>
+
+                    <div className="pt-1 flex items-center justify-end gap-2">
+                      {eqItem && onEditEquipment && (
+                        <button
+                          type="button"
+                          onClick={() => onEditEquipment(eqItem)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg text-xs transition-colors cursor-pointer"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                          Карточка
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => onOpenReturnModal(item)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold rounded-lg border border-emerald-300 text-xs transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs transition-colors cursor-pointer shadow-xs"
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
-                        Принять
+                        Принять возврат
                       </button>
-                    </td>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop View: Table (Screens >= 768px) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                  <tr>
+                    <th className="py-3 px-4">Инв. номер</th>
+                    <th className="py-3 px-4">Оборудование / Модель</th>
+                    <th className="py-3 px-4">Сотрудник</th>
+                    <th className="py-3 px-4">Выдано</th>
+                    <th className="py-3 px-4">Дата выдачи</th>
+                    <th className="py-3 px-4 text-right">Действие</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {filteredIssued.map((item, idx) => {
+                    const eqItem = equipment.find(
+                      (e) => e.inventoryNumber === item.inventoryNumber || e.id === item.equipmentId
+                    );
+                    return (
+                      <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-3 px-4">
+                          {/* ТЕМНО-СИНИЙ цвет инвентарного номера по ТЗ */}
+                          {eqItem && onEditEquipment ? (
+                            <button
+                              type="button"
+                              onClick={() => onEditEquipment(eqItem)}
+                              className="font-bold text-blue-900 tracking-wide text-xs bg-blue-50 border border-blue-200 px-2 py-1 rounded hover:bg-blue-100 transition-colors cursor-pointer text-left"
+                              title="Редактировать карточку оборудования"
+                            >
+                              {item.inventoryNumber}
+                            </button>
+                          ) : (
+                            <span className="font-bold text-blue-900 tracking-wide text-xs bg-blue-50 border border-blue-200 px-2 py-1 rounded">
+                              {item.inventoryNumber}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div
+                            onClick={() => eqItem && onEditEquipment && onEditEquipment(eqItem)}
+                            className={`font-semibold text-slate-900 text-sm ${
+                              eqItem && onEditEquipment ? 'hover:text-blue-700 cursor-pointer' : ''
+                            }`}
+                            title={eqItem && onEditEquipment ? 'Редактировать карточку' : undefined}
+                          >
+                            {item.equipmentName}
+                          </div>
+                          <div className="text-[11px] text-slate-500">
+                            {item.model || 'Модель не указана'}
+                            {item.serialNumber ? ` • S/N: ${item.serialNumber}` : ''}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-semibold text-slate-800">
+                            {item.employeeName}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900">
+                            {item.issuedQuantity} шт.
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-slate-500 whitespace-nowrap">
+                          {item.lastIssuedDate}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {eqItem && onEditEquipment && (
+                              <button
+                                type="button"
+                                onClick={() => onEditEquipment(eqItem)}
+                                className="p-1.5 text-slate-400 hover:text-blue-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                                title="Редактировать карточку оборудования"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => onOpenReturnModal(item)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold rounded-lg border border-emerald-300 text-xs transition-colors cursor-pointer"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              Принять
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

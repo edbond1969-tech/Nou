@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { type User } from 'firebase/auth';
+import { LogOut } from 'lucide-react';
+import { App as CapApp } from '@capacitor/app';
 import {
   Equipment,
   Employee,
@@ -34,6 +36,7 @@ import ImportModal from './components/ImportModal';
 import ExportModal from './components/ExportModal';
 import ArchiveModal from './components/ArchiveModal';
 import GoogleDriveModal from './components/GoogleDriveModal';
+import ExitConfirmModal from './components/ExitConfirmModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('main');
@@ -99,6 +102,7 @@ export default function App() {
   const [isIssueOpen, setIsIssueOpen] = useState(false);
   const [isReturnOpen, setIsReturnOpen] = useState(false);
   const [returnSelectedItem, setReturnSelectedItem] = useState<IssuedItemTracking | null>(null);
+  const [returnSelectedEmployeeName, setReturnSelectedEmployeeName] = useState<string | null>(null);
 
   const [isEquipmentModalOpen, setIsEquipmentModalOpen] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
@@ -111,6 +115,168 @@ export default function App() {
   const [exportType, setExportType] = useState<'equipment' | 'employees' | 'history' | 'history_period'>('equipment');
 
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
+  const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
+  const [isAppClosed, setIsAppClosed] = useState(false);
+
+  // Tab navigation history stack
+  const [tabHistory, setTabHistory] = useState<ActiveTab[]>(['main']);
+
+  const handleNavigateTab = (newTab: ActiveTab) => {
+    if (newTab === activeTab) return;
+    setTabHistory((prev) => [...prev, newTab]);
+    setActiveTab(newTab);
+  };
+
+  // Centralized "Back" / "Возврат" handler
+  // Rule: Pressing Back must NEVER close the app!
+  // Instead:
+  // 1) Closes any open modal dialog
+  // 2) If on a secondary tab (equipment, employees, history, settings), transitions to the previous tab or main screen
+  // 3) If on the main screen with no dialogs open, asks for exit confirmation
+  const handleGoBack = () => {
+    // 1. If Exit confirm modal itself is open, close it
+    if (isExitConfirmOpen) {
+      setIsExitConfirmOpen(false);
+      return;
+    }
+
+    // 2. If any other modal is open, close it safely
+    if (isIssueOpen) {
+      setIsIssueOpen(false);
+      return;
+    }
+    if (isReturnOpen) {
+      setIsReturnOpen(false);
+      setReturnSelectedItem(null);
+      setReturnSelectedEmployeeName(null);
+      return;
+    }
+    if (isEquipmentModalOpen) {
+      setIsEquipmentModalOpen(false);
+      setEditingEquipment(null);
+      return;
+    }
+    if (isEmployeeModalOpen) {
+      setIsEmployeeModalOpen(false);
+      setEditingEmployee(null);
+      return;
+    }
+    if (isImportModalOpen) {
+      setIsImportModalOpen(false);
+      return;
+    }
+    if (isExportModalOpen) {
+      setIsExportModalOpen(false);
+      return;
+    }
+    if (isArchiveModalOpen) {
+      setIsArchiveModalOpen(false);
+      return;
+    }
+    if (isGoogleDriveModalOpen) {
+      setIsGoogleDriveModalOpen(false);
+      return;
+    }
+
+    // 3. If currently on a sub-screen (not 'main'), return to the previous screen
+    if (activeTab !== 'main') {
+      if (tabHistory.length > 1) {
+        const nextHistory = [...tabHistory];
+        nextHistory.pop(); // remove current tab
+        const prevTab = nextHistory[nextHistory.length - 1] || 'main';
+        setTabHistory(nextHistory);
+        setActiveTab(prevTab);
+      } else {
+        setActiveTab('main');
+      }
+      return;
+    }
+
+    // 4. If on the main screen and no dialogs are open:
+    // Prompt user to confirm closing the app (prevents accidental closure)
+    setIsExitConfirmOpen(true);
+  };
+
+  // Exit application deliberate action
+  const handleConfirmExit = async () => {
+    setIsExitConfirmOpen(false);
+    try {
+      // If running inside Capacitor on Android
+      await CapApp.exitApp();
+    } catch (e) {
+      // In web browser: attempt window.close or show closed session screen
+      try {
+        window.close();
+      } catch (err) {}
+      setIsAppClosed(true);
+    }
+  };
+
+  // Ref to always have the freshest handleGoBack instance in native listener
+  const handleGoBackRef = useRef(handleGoBack);
+  handleGoBackRef.current = handleGoBack;
+
+  // Listen to Android hardware/system Back button (Capacitor) and Browser PopState
+  useEffect(() => {
+    let backListener: { remove: () => void } | null = null;
+
+    try {
+      CapApp.addListener('backButton', () => {
+        handleGoBackRef.current();
+      })
+        .then((handle) => {
+          backListener = handle;
+        })
+        .catch(() => {
+          // Running in browser environment without Capacitor Android shell
+        });
+    } catch (err) {
+      // Capacitor not available
+    }
+
+    const onPopState = (e: PopStateEvent) => {
+      e.preventDefault();
+      handleGoBackRef.current();
+    };
+
+    window.addEventListener('popstate', onPopState);
+
+    return () => {
+      if (backListener) {
+        backListener.remove();
+      }
+      window.removeEventListener('popstate', onPopState);
+    };
+  }, []);
+
+  // Sync state to browser history so mobile browser back button triggers popstate
+  useEffect(() => {
+    const hasOpenModal =
+      isIssueOpen ||
+      isReturnOpen ||
+      isEquipmentModalOpen ||
+      isEmployeeModalOpen ||
+      isImportModalOpen ||
+      isExportModalOpen ||
+      isArchiveModalOpen ||
+      isGoogleDriveModalOpen ||
+      isExitConfirmOpen;
+
+    try {
+      window.history.pushState({ tab: activeTab, modal: hasOpenModal }, '');
+    } catch (e) {}
+  }, [
+    activeTab,
+    isIssueOpen,
+    isReturnOpen,
+    isEquipmentModalOpen,
+    isEmployeeModalOpen,
+    isImportModalOpen,
+    isExportModalOpen,
+    isArchiveModalOpen,
+    isGoogleDriveModalOpen,
+    isExitConfirmOpen,
+  ]);
 
   // Formatter for current datetime
   const getCurrentDateString = () => {
@@ -158,43 +324,58 @@ export default function App() {
     setHistory((prev) => [newRecord, ...prev]);
   };
 
-  // 2. Return Transaction
+  // 2. Return Transaction (Batch or Single)
+  const handleBatchReturn = (
+    returns: { equipmentId: number; employeeName: string; quantity: number; note: string }[]
+  ) => {
+    if (!returns || returns.length === 0) return;
+
+    // 1. Increase warehouse quantity for all returned items
+    setEquipment((prev) => {
+      const next = [...prev];
+      for (const ret of returns) {
+        const idx = next.findIndex((e) => e.id === ret.equipmentId);
+        if (idx !== -1) {
+          next[idx] = {
+            ...next[idx],
+            quantity: next[idx].quantity + ret.quantity,
+            status: 'available' as const,
+          };
+        }
+      }
+      return next;
+    });
+
+    // 2. Add return history records for each position
+    const dateStr = getCurrentDateString();
+    const newRecords: HistoryRecord[] = returns.map((ret, idx) => {
+      const item = equipment.find((e) => e.id === ret.equipmentId);
+      const itemName = item ? item.name : 'Оборудование';
+      const invNumber = item ? item.inventoryNumber : 'Б/Н';
+
+      return {
+        id: Date.now() + idx,
+        equipmentId: ret.equipmentId,
+        inventoryNumber: invNumber,
+        equipmentName: itemName,
+        employeeName: ret.employeeName,
+        action: 'Возврат',
+        quantity: ret.quantity,
+        date: dateStr,
+        note: ret.note || undefined,
+      };
+    });
+
+    setHistory((prev) => [...newRecords, ...prev]);
+  };
+
   const handleReturn = (
     equipmentId: number,
     employeeName: string,
     returnQuantity: number,
     note: string
   ) => {
-    const item = equipment.find((e) => e.id === equipmentId);
-    const itemName = item ? item.name : 'Оборудование';
-    const invNumber = item ? item.inventoryNumber : 'Б/Н';
-
-    // Increase warehouse quantity
-    const updatedEquipment = equipment.map((e) => {
-      if (e.id === equipmentId) {
-        return {
-          ...e,
-          quantity: e.quantity + returnQuantity,
-          status: 'available' as const,
-        };
-      }
-      return e;
-    });
-    setEquipment(updatedEquipment);
-
-    // Add return history record
-    const newRecord: HistoryRecord = {
-      id: Date.now(),
-      equipmentId,
-      inventoryNumber: invNumber,
-      equipmentName: itemName,
-      employeeName,
-      action: 'Возврат',
-      quantity: returnQuantity,
-      date: getCurrentDateString(),
-      note: note || undefined,
-    };
-    setHistory((prev) => [newRecord, ...prev]);
+    handleBatchReturn([{ equipmentId, employeeName, quantity: returnQuantity, note }]);
   };
 
   // 3. Equipment CRUD
@@ -316,22 +497,53 @@ export default function App() {
     setHistory(loadHistory());
   };
 
+  if (isAppClosed) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 selection:bg-blue-100 selection:text-blue-900">
+        <div className="max-w-md w-full bg-white rounded-2xl p-6 sm:p-8 text-center shadow-2xl border border-slate-200 space-y-4">
+          <div className="w-14 h-14 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto shadow-2xs">
+            <LogOut className="w-7 h-7" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">Приложение закрыто</h2>
+            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+              Работа с системой учёта оборудования завершена. Все ваши данные надёжно сохранены в локальной базе устройства.
+            </p>
+          </div>
+          <div className="pt-2">
+            <button
+              id="btn-reopen-app"
+              type="button"
+              onClick={() => setIsAppClosed(false)}
+              className="w-full py-2.5 px-4 bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+            >
+              Возобновить работу
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-800 antialiased selection:bg-blue-100 selection:text-blue-900">
       {/* Navigation Header */}
       <Header
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleNavigateTab}
         equipment={equipment}
         employees={employees}
         issuedItems={issuedItems}
         onOpenIssueModal={() => setIsIssueOpen(true)}
         onOpenReturnModal={() => {
           setReturnSelectedItem(null);
+          setReturnSelectedEmployeeName(null);
           setIsReturnOpen(true);
         }}
         currentUser={currentUser}
         onOpenGoogleDriveModal={() => setIsGoogleDriveModalOpen(true)}
+        onOpenExitModal={() => setIsExitConfirmOpen(true)}
+        onGoBack={handleGoBack}
       />
 
       {/* Main View Container */}
@@ -345,6 +557,7 @@ export default function App() {
             onOpenIssueModal={() => setIsIssueOpen(true)}
             onOpenReturnModal={(item) => {
               setReturnSelectedItem(item || null);
+              setReturnSelectedEmployeeName(item ? item.employeeName : null);
               setIsReturnOpen(true);
             }}
             onOpenImportModal={() => setIsImportModalOpen(true)}
@@ -356,7 +569,11 @@ export default function App() {
               setEditingEmployee(null);
               setIsEmployeeModalOpen(true);
             }}
-            onNavigateToTab={(tab) => setActiveTab(tab)}
+            onNavigateToTab={handleNavigateTab}
+            onEditEquipment={(item) => {
+              setEditingEquipment(item);
+              setIsEquipmentModalOpen(true);
+            }}
           />
         )}
 
@@ -401,6 +618,11 @@ export default function App() {
             onIssueToEmployee={(emp) => {
               setIsIssueOpen(true);
             }}
+            onReturnFromEmployee={(emp) => {
+              setReturnSelectedItem(null);
+              setReturnSelectedEmployeeName(emp.name);
+              setIsReturnOpen(true);
+            }}
           />
         )}
 
@@ -420,7 +642,7 @@ export default function App() {
             equipment={equipment}
             employees={employees}
             history={history}
-            onNavigateToTab={(tab) => setActiveTab(tab)}
+            onNavigateToTab={handleNavigateTab}
             onOpenAddEmployee={() => {
               setEditingEmployee(null);
               setIsEmployeeModalOpen(true);
@@ -436,6 +658,7 @@ export default function App() {
             onResetToDefaults={handleResetToDefaults}
             currentUser={currentUser}
             onOpenGoogleDriveModal={() => setIsGoogleDriveModalOpen(true)}
+            onOpenExitModal={() => setIsExitConfirmOpen(true)}
           />
         )}
       </main>
@@ -459,10 +682,13 @@ export default function App() {
         onClose={() => {
           setIsReturnOpen(false);
           setReturnSelectedItem(null);
+          setReturnSelectedEmployeeName(null);
         }}
         issuedItems={issuedItems}
-        onReturn={handleReturn}
+        employees={employees}
+        onBatchReturn={handleBatchReturn}
         preselectedItem={returnSelectedItem}
+        preselectedEmployeeName={returnSelectedEmployeeName}
       />
 
       <EquipmentModal
@@ -518,6 +744,13 @@ export default function App() {
         history={history}
         onRestoreBackup={handleRestoreBackup}
         onImportEquipment={handleImportEquipment}
+      />
+
+      {/* App Exit Confirmation Modal */}
+      <ExitConfirmModal
+        isOpen={isExitConfirmOpen}
+        onClose={() => setIsExitConfirmOpen(false)}
+        onConfirmExit={handleConfirmExit}
       />
     </div>
   );
